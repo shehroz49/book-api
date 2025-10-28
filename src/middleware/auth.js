@@ -36,8 +36,10 @@ const protect = async (req, res, next) => {
     // Tokenni verify qilish
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Foydalanuvchini topish
-    req.user = await User.findById(decoded.id);
+    // Foydalanuvchini topish (faqat _id va email kerak)
+    req.user = await User.findById(decoded.id)
+      .select('_id email')
+      .lean(); // Tezroq ishlash uchun
 
     if (!req.user) {
       return res.status(401).json({

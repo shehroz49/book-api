@@ -17,7 +17,17 @@ const connectDB = async () => {
       );
     }
 
-    const conn = await mongoose.connect(mongoURI);
+    // MongoDB connection options - Performance optimization
+    const options = {
+      maxPoolSize: 10, // Connection pool hajmi
+      minPoolSize: 2, // Minimal connection soni
+      maxIdleTimeMS: 30000, // 30 soniya idle bo'lsa close
+      serverSelectionTimeoutMS: 5000, // 5 soniya timeout
+      socketTimeoutMS: 45000, // 45 soniya socket timeout
+      family: 4, // IPv4 ishlatish (tezroq)
+    };
+
+    const conn = await mongoose.connect(mongoURI, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`❌ MongoDB connection error: ${error.message}`);

@@ -19,12 +19,19 @@ const bookSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true // User bo'yicha tez qidiruv uchun
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true // Sana bo'yicha tez sorting uchun
   }
 });
+
+// Compound index - user va createdAt uchun
+bookSchema.index({ user: 1, createdAt: -1 });
+
+// _id avtomatik index bo'ladi, qo'shimcha keremas
 
 module.exports = mongoose.model('Book', bookSchema);

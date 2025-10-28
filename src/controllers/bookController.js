@@ -18,7 +18,10 @@ const getBooks = async (req, res) => {
     if (!books) {
       // Autentifikatsiya bo'lsa faqat o'z kitoblarini, bo'lmasa barcha kitoblarni ko'rsatish
       const query = req.user ? { user: req.user._id } : {};
-      books = await Book.find(query).sort({ createdAt: -1 });
+      books = await Book.find(query)
+        .select('name description image user createdAt') // Faqat kerakli fieldlar
+        .sort({ createdAt: -1 })
+        .lean(); // Plain JavaScript object qaytaradi (Mongoose overhead yo'q)
 
       // Cache ga saqlash (5 daqiqa)
       await cache.set(cacheKey, books, 300);
@@ -51,7 +54,9 @@ const getBook = async (req, res) => {
     let book = await cache.get(cacheKey);
 
     if (!book) {
-      book = await Book.findById(bookId);
+      book = await Book.findById(bookId)
+        .select('name description image user createdAt')
+        .lean(); // Tez ishlash uchun
 
       if (!book) {
         return res.status(404).json({
@@ -118,7 +123,9 @@ const createBook = async (req, res) => {
 const updateBook = async (req, res) => {
   try {
     const bookId = req.params.id;
-    let book = await Book.findById(bookId);
+    let book = await Book.findById(bookId)
+      .select('user') // Faqat user field kerak check uchun
+      .lean();
 
     if (!book) {
       return res.status(404).json({
@@ -138,6 +145,7 @@ const updateBook = async (req, res) => {
     book = await Book.findByIdAndUpdate(bookId, req.body, {
       new: true,
       runValidators: true,
+      lean: true, // Tezroq ishlash uchun
     });
 
     // Cache ni tozalash
@@ -165,7 +173,9 @@ const updateBook = async (req, res) => {
 const deleteBook = async (req, res) => {
   try {
     const bookId = req.params.id;
-    const book = await Book.findById(bookId);
+    const book = await Book.findById(bookId)
+      .select('user') // Faqat user field kerak check uchun
+      .lean();
 
     if (!book) {
       return res.status(404).json({
@@ -182,7 +192,7 @@ const deleteBook = async (req, res) => {
       });
     }
 
-    await book.deleteOne();
+    await Book.findByIdAndDelete(bookId); // Tezroq
 
     // Cache ni tozalash
     await cache.del(`book:${bookId}`);

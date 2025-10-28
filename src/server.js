@@ -3,6 +3,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const compression = require("compression");
 const swaggerUi = require("swagger-ui-express");
 const connectDB = require("./config/database");
 const swaggerSpec = require("./config/swagger");
@@ -20,6 +21,18 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// Compression middleware (eng birinchi bo'lishi kerak)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false; // Compression kerak bo'lmasa
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Compression darajasi (1-9, 6 optimal)
+  threshold: 1024, // Faqat 1KB dan katta response lar uchun
+}));
 
 // Rate limiting qo'llash
 app.use(generalLimiter);
@@ -42,8 +55,8 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Body size limit
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(
   "/api-docs",

@@ -14,24 +14,36 @@ const getBooks = async (req, res) => {
 
     // Cache dan ma'lumot olish
     let books = await cache.get(cacheKey);
+    let fromCache = !!books;
 
     if (!books) {
       // Autentifikatsiya bo'lsa faqat o'z kitoblarini, bo'lmasa barcha kitoblarni ko'rsatish
       const query = req.user ? { user: req.user._id } : {};
+
+      const startTime = Date.now();
       books = await Book.find(query)
         .select('name description image user createdAt') // Faqat kerakli fieldlar
         .sort({ createdAt: -1 })
         .lean(); // Plain JavaScript object qaytaradi (Mongoose overhead yo'q)
 
-      // Cache ga saqlash (5 daqiqa)
-      await cache.set(cacheKey, books, 300);
+      const queryTime = Date.now() - startTime;
+      console.log(`📊 DB query time: ${queryTime}ms`);
+
+      // Cache ga saqlash (1 soat - aggressive caching)
+      await cache.set(cacheKey, books, 3600);
     }
+
+    // HTTP cache headers qo'shish
+    res.set({
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600', // 5 min fresh, 1 hour stale
+      'ETag': `"${cacheKey}-${books.length}"`,
+    });
 
     res.status(200).json({
       success: true,
       count: books.length,
       data: books,
-      cached: books ? true : false,
+      cached: fromCache,
     });
   } catch (error) {
     res.status(500).json({
@@ -65,8 +77,8 @@ const getBook = async (req, res) => {
         });
       }
 
-      // Cache ga saqlash (10 daqiqa)
-      await cache.set(cacheKey, book, 600);
+      // Cache ga saqlash (2 soat - aggressive caching)
+      await cache.set(cacheKey, book, 7200);
     }
 
     // Barcha foydalanuvchilar kitobni ko'rishi mumkin

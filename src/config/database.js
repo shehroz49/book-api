@@ -17,14 +17,19 @@ const connectDB = async () => {
       );
     }
 
-    // MongoDB connection options - Performance optimization
+    // MongoDB connection options - Ultra performance optimization
     const options = {
-      maxPoolSize: 10, // Connection pool hajmi
-      minPoolSize: 2, // Minimal connection soni
-      maxIdleTimeMS: 30000, // 30 soniya idle bo'lsa close
-      serverSelectionTimeoutMS: 5000, // 5 soniya timeout
-      socketTimeoutMS: 45000, // 45 soniya socket timeout
+      maxPoolSize: 50, // Katta connection pool (Railway uchun)
+      minPoolSize: 5, // Minimal connection soni
+      maxIdleTimeMS: 60000, // 60 soniya idle
+      serverSelectionTimeoutMS: 3000, // 3 soniya timeout (tezroq)
+      socketTimeoutMS: 30000, // 30 soniya socket timeout
+      connectTimeoutMS: 3000, // 3 soniya connection timeout
       family: 4, // IPv4 ishlatish (tezroq)
+      retryWrites: true, // Retry failed writes
+      w: 'majority', // Write concern
+      compressors: ['zlib'], // Network compression
+      zlibCompressionLevel: 6, // Compression level
     };
 
     const conn = await mongoose.connect(mongoURI, options);

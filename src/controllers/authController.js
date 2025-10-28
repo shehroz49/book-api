@@ -1,18 +1,25 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+/** @format */
+
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const { cache } = require("../config/redis");
 
 // JWT Access token yaratish
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '15m'
+    expiresIn: process.env.JWT_EXPIRE || "15m",
   });
 };
 
 // JWT Refresh token yaratish
 const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d'
-  });
+  return jwt.sign(
+    { id },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_REFRESH_EXPIRE || "7d",
+    }
+  );
 };
 
 // @desc    Register user
@@ -28,14 +35,14 @@ const register = async (req, res) => {
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'Bu email allaqachon ro\'yxatdan o\'tgan'
+        message: "Bu email allaqachon ro'yxatdan o'tgan",
       });
     }
 
     // Yangi foydalanuvchi yaratish
     const user = await User.create({
       email,
-      password
+      password,
     });
 
     // Access va Refresh token yaratish
@@ -48,19 +55,19 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Ro\'yxatdan o\'tish muvaffaqiyatli',
+      message: "Ro'yxatdan o'tish muvaffaqiyatli",
       token,
       refreshToken,
       user: {
         id: user._id,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server xatosi',
-      error: error.message
+      message: "Server xatosi",
+      error: error.message,
     });
   }
 };
@@ -76,17 +83,17 @@ const login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Iltimos email va parolni kiriting'
+        message: "Iltimos email va parolni kiriting",
       });
     }
 
     // Foydalanuvchini topish (parol bilan)
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Email yoki parol noto\'g\'ri'
+        message: "Email yoki parol noto'g'ri",
       });
     }
 
@@ -96,7 +103,7 @@ const login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Email yoki parol noto\'g\'ri'
+        message: "Email yoki parol noto'g'ri",
       });
     }
 
@@ -110,19 +117,19 @@ const login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Tizimga kirish muvaffaqiyatli',
+      message: "Tizimga kirish muvaffaqiyatli",
       token,
       refreshToken,
       user: {
         id: user._id,
-        email: user.email
-      }
+        email: user.email,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server xatosi',
-      error: error.message
+      message: "Server xatosi",
+      error: error.message,
     });
   }
 };
@@ -135,18 +142,18 @@ const getMe = async (req, res) => {
     const user = {
       id: req.user._id,
       email: req.user.email,
-      createdAt: req.user.createdAt
+      createdAt: req.user.createdAt,
     };
 
     res.status(200).json({
       success: true,
-      user
+      user,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server xatosi',
-      error: error.message
+      message: "Server xatosi",
+      error: error.message,
     });
   }
 };
@@ -161,20 +168,23 @@ const refreshAccessToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token kiritilmagan'
+        message: "Refresh token kiritilmagan",
       });
     }
 
     // Refresh tokenni tekshirish
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
+    );
 
     // Foydalanuvchini topish
-    const user = await User.findById(decoded.id).select('+refreshToken');
+    const user = await User.findById(decoded.id).select("+refreshToken");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Foydalanuvchi topilmadi'
+        message: "Foydalanuvchi topilmadi",
       });
     }
 
@@ -182,7 +192,7 @@ const refreshAccessToken = async (req, res) => {
     if (user.refreshToken !== refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token noto\'g\'ri'
+        message: "Refresh token noto'g'ri",
       });
     }
 
@@ -191,14 +201,14 @@ const refreshAccessToken = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Token yangilandi',
-      token: newToken
+      message: "Token yangilandi",
+      token: newToken,
     });
   } catch (error) {
     res.status(401).json({
       success: false,
-      message: 'Refresh token noto\'g\'ri yoki muddati tugagan',
-      error: error.message
+      message: "Refresh token noto'g'ri yoki muddati tugagan",
+      error: error.message,
     });
   }
 };
@@ -208,6 +218,8 @@ const refreshAccessToken = async (req, res) => {
 // @access  Private
 const logout = async (req, res) => {
   try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
     // Foydalanuvchini topish va refresh tokenni o'chirish
     const user = await User.findById(req.user._id);
 
@@ -216,15 +228,26 @@ const logout = async (req, res) => {
       await user.save();
     }
 
+    // Access tokenni blacklist ga qo'shish
+    if (token) {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+        if (ttl > 0) {
+          await cache.set(`blacklist:${token}`, true, ttl);
+        }
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: 'Tizimdan muvaffaqiyatli chiqdingiz'
+      message: "Tizimdan muvaffaqiyatli chiqdingiz",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server xatosi',
-      error: error.message
+      message: "Server xatosi",
+      error: error.message,
     });
   }
 };

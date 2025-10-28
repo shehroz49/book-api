@@ -14,7 +14,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://7411d69fe647.ngrok-free.app',
+        url: 'https://book-api-production-a8c4.up.railway.app',
         description: 'Development server'
       }
     ],

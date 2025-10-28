@@ -18,11 +18,8 @@ try {
 
 // Redis mavjudligini tekshirish
 const isRedisConfigured = () => {
-  return (
-    process.env.REDIS_HOST ||
-    process.env.REDIS_URL ||
-    process.env.NODE_ENV === "development"
-  );
+  // Faqat REDIS_HOST yoki REDIS_URL ko'rsatilgan bo'lsa true qaytarish
+  return !!(process.env.REDIS_HOST || process.env.REDIS_URL);
 };
 
 // Har bir limiter uchun alohida store yaratish

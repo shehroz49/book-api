@@ -21,13 +21,23 @@ const getBooks = async (req, res) => {
       const query = req.user ? { user: req.user._id } : {};
 
       const startTime = Date.now();
-      books = await Book.find(query)
+
+      // Query optimizatsiyasi - index hint va limit
+      const queryBuilder = Book.find(query)
         .select('name description image user createdAt') // Faqat kerakli fieldlar
         .sort({ createdAt: -1 })
-        .lean(); // Plain JavaScript object qaytaradi (Mongoose overhead yo'q)
+        .lean() // Plain JavaScript object (Mongoose overhead yo'q)
+        .maxTimeMS(5000); // 5 soniya max query time
+
+      // Index mavjud bo'lsa hint berish
+      if (req.user) {
+        queryBuilder.hint({ user: 1, createdAt: -1 }); // Compound index ishlatish
+      }
+
+      books = await queryBuilder;
 
       const queryTime = Date.now() - startTime;
-      console.log(`📊 DB query time: ${queryTime}ms`);
+      console.log(`📊 DB query time: ${queryTime}ms (${books.length} books)`);
 
       // Cache ga saqlash (1 soat - aggressive caching)
       await cache.set(cacheKey, books, 3600);

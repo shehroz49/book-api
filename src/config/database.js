@@ -30,6 +30,8 @@ const connectDB = async () => {
       w: 'majority', // Write concern
       compressors: ['zlib'], // Network compression
       zlibCompressionLevel: 6, // Compression level
+      readPreference: 'nearest', // Eng yaqin MongoDB node dan o'qish (tezroq!)
+      readConcern: { level: 'local' }, // Local read (tezroq, eventual consistency)
     };
 
     const conn = await mongoose.connect(mongoURI, options);

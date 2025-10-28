@@ -40,29 +40,24 @@ app.use(compression({
   threshold: 1024, // Faqat 1KB dan katta response lar uchun
 }));
 
-// Rate limiting qo'llash
-app.use(generalLimiter);
+// Rate limiting qo'llash (faqat production da)
+if (process.env.NODE_ENV === 'production') {
+  app.use(generalLimiter);
+}
 
-// Middleware - CORS sozlamalari (Swagger va ngrok uchun)
-app.use(
-  cors({
-    origin: true, // Barcha domenlardan ruxsat (dinamik)
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "x-auth-token",
-      "Accept",
-      "ngrok-skip-browser-warning",
-    ],
-    credentials: true,
-    optionsSuccessStatus: 200,
-    preflightContinue: false,
-  })
-);
+// Middleware - CORS sozlamalari (optimized)
+const corsOptions = {
+  origin: true, // Barcha domenlardan ruxsat
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  maxAge: 86400, // 24 soat CORS cache
+  preflightContinue: false,
+};
+app.use(cors(corsOptions));
 
-app.use(express.json({ limit: '10mb' })); // Body size limit
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb', strict: true })); // Body size limit
+app.use(express.urlencoded({ extended: false, limit: '1mb' })); // extended: false tezroq
 
 app.use(
   "/api-docs",
@@ -73,9 +68,14 @@ app.use(
   })
 );
 
-// Routes
-app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
-app.use("/api/books", apiLimiter, require("./routes/bookRoutes"));
+// Routes (rate limiter faqat production da)
+if (process.env.NODE_ENV === 'production') {
+  app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
+  app.use("/api/books", apiLimiter, require("./routes/bookRoutes"));
+} else {
+  app.use("/api/auth", require("./routes/authRoutes"));
+  app.use("/api/books", require("./routes/bookRoutes"));
+}
 
 // Asosiy route
 app.get("/", (req, res) => {

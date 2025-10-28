@@ -13,6 +13,7 @@ const {
   authLimiter,
   apiLimiter,
 } = require("./middleware/rateLimiter");
+const { performanceMonitor } = require("./middleware/performance");
 
 // Environment variables yuklash
 dotenv.config();
@@ -21,6 +22,11 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// Performance monitoring (development da)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(performanceMonitor);
+}
 
 // Compression middleware (eng birinchi bo'lishi kerak)
 app.use(compression({

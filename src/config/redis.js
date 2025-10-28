@@ -1,6 +1,7 @@
 /** @format */
 
 const Redis = require("ioredis");
+const { memoryCache } = require("./memoryCache");
 
 // Redis client konfiguratsiyasi
 const redisConfig = {
@@ -92,114 +93,111 @@ if (isRedisAvailable()) {
     redisConnected = false;
   }
 } else {
-  console.warn("⚠️ Redis not configured, using memory fallback");
+  console.warn("⚠️ Redis not configured, using memory cache fallback");
   redisConnected = false;
 }
 
 // Cache helper funksiyalari
 const cache = {
-  // Redis ulanishini tekshirish
+  // Redis yoki Memory cache ulanishini tekshirish
   isConnected() {
-    return redisConnected && redis && redis.status === "ready";
+    const redisReady = redisConnected && redis && redis.status === "ready";
+    const memoryReady = memoryCache && memoryCache.isConnected();
+    return redisReady || memoryReady;
   },
 
   // Ma'lumotni cache ga saqlash
   async set(key, value, ttl = 3600) {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache set");
-      return false;
+    // Redis mavjud va ishlamoqda bo'lsa
+    if (redisConnected && redis && redis.status === "ready") {
+      try {
+        const serializedValue = JSON.stringify(value);
+        await redis.setex(key, ttl, serializedValue);
+        return true;
+      } catch (error) {
+        console.error("Redis cache set error:", error.message);
+        // Redis error bo'lsa, memory cache ga fallback
+      }
     }
 
-    try {
-      const serializedValue = JSON.stringify(value);
-      await redis.setex(key, ttl, serializedValue);
-      return true;
-    } catch (error) {
-      console.error("Cache set error:", error.message);
-      return false;
-    }
+    // Memory cache ishlatish (fallback)
+    return await memoryCache.set(key, value, ttl);
   },
 
   // Ma'lumotni cache dan olish
   async get(key) {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache get");
-      return null;
+    // Redis mavjud va ishlamoqda bo'lsa
+    if (redisConnected && redis && redis.status === "ready") {
+      try {
+        const value = await redis.get(key);
+        return value ? JSON.parse(value) : null;
+      } catch (error) {
+        console.error("Redis cache get error:", error.message);
+        // Redis error bo'lsa, memory cache ga fallback
+      }
     }
 
-    try {
-      const value = await redis.get(key);
-      return value ? JSON.parse(value) : null;
-    } catch (error) {
-      console.error("Cache get error:", error.message);
-      return null;
-    }
+    // Memory cache ishlatish (fallback)
+    return await memoryCache.get(key);
   },
 
   // Ma'lumotni cache dan o'chirish
   async del(key) {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache delete");
-      return false;
+    // Redis mavjud va ishlamoqda bo'lsa
+    if (redisConnected && redis && redis.status === "ready") {
+      try {
+        await redis.del(key);
+        return true;
+      } catch (error) {
+        console.error("Redis cache delete error:", error.message);
+        // Redis error bo'lsa, memory cache ga fallback
+      }
     }
 
-    try {
-      await redis.del(key);
-      return true;
-    } catch (error) {
-      console.error("Cache delete error:", error.message);
-      return false;
-    }
+    // Memory cache ishlatish (fallback)
+    return await memoryCache.del(key);
   },
 
   // Pattern bo'yicha keylarni o'chirish
   async delPattern(pattern) {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache pattern delete");
-      return false;
+    // Redis mavjud va ishlamoqda bo'lsa
+    if (redisConnected && redis && redis.status === "ready") {
+      try {
+        const keys = await redis.keys(pattern);
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+        return true;
+      } catch (error) {
+        console.error("Redis cache delete pattern error:", error.message);
+        // Redis error bo'lsa, memory cache ga fallback
+      }
     }
 
-    try {
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-      return true;
-    } catch (error) {
-      console.error("Cache delete pattern error:", error.message);
-      return false;
-    }
+    // Memory cache ishlatish (fallback)
+    return await memoryCache.delPattern(pattern);
   },
 
   // Cache ni tozalash
   async flush() {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache flush");
-      return false;
+    // Redis mavjud va ishlamoqda bo'lsa
+    if (redisConnected && redis && redis.status === "ready") {
+      try {
+        await redis.flushdb();
+        return true;
+      } catch (error) {
+        console.error("Redis cache flush error:", error.message);
+        // Redis error bo'lsa, memory cache ga fallback
+      }
     }
 
-    try {
-      await redis.flushdb();
-      return true;
-    } catch (error) {
-      console.error("Cache flush error:", error.message);
-      return false;
-    }
+    // Memory cache ishlatish (fallback)
+    return await memoryCache.flush();
   },
 
-  // TTL ni olish
-  async ttl(key) {
-    if (!this.isConnected()) {
-      console.warn("Redis not connected, skipping cache TTL");
-      return -1;
-    }
-
-    try {
-      return await redis.ttl(key);
-    } catch (error) {
-      console.error("Cache TTL error:", error.message);
-      return -1;
-    }
+  // Cache hajmini olish
+  size() {
+    return memoryCache.size();
   },
 };
 

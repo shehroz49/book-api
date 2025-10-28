@@ -4,26 +4,43 @@ const Redis = require("ioredis");
 
 // Redis client konfiguratsiyasi
 const redisConfig = {
-  host: process.env.REDIS_HOST || "127.0.0.1", // localhost o'rniga 127.0.0.1
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
+  host:
+    process.env.REDIS_HOST ||
+    process.env.REDIS_URL?.split("://")[1]?.split(":")[0] ||
+    "127.0.0.1",
+  port:
+    parseInt(process.env.REDIS_PORT) ||
+    parseInt(process.env.REDIS_URL?.split(":")[2]) ||
+    6379,
+  password:
+    process.env.REDIS_PASSWORD ||
+    process.env.REDIS_URL?.split("://")[1]?.split("@")[0]?.split(":")[1] ||
+    undefined,
   db: parseInt(process.env.REDIS_DB) || 0,
   retryDelayOnFailover: 100,
-  maxRetriesPerRequest: 1, // Kamaytirildi
-  lazyConnect: false, // Darhol ulanish
+  maxRetriesPerRequest: 1,
+  lazyConnect: true, // Production uchun lazy connect
   keepAlive: 30000,
-  connectTimeout: 3000, // Kamaytirildi
-  commandTimeout: 3000, // Kamaytirildi
-  family: 4, // IPv4 ni majburiy qilish
+  connectTimeout: 5000, // Production uchun ko'proq vaqt
+  commandTimeout: 5000,
+  family: 4,
   enableReadyCheck: true,
   maxLoadingTimeout: 1000,
   // Production uchun qo'shimcha sozlamalar
-  enableOfflineQueue: true, // Offline queue ni yoqish
+  enableOfflineQueue: true,
   retryDelayOnClusterDown: 100,
   retryDelayOnFailover: 100,
   maxRetriesPerRequest: 1,
   // Connection pool
-  enableAutoPipelining: false, // Auto pipelining ni o'chirish
+  enableAutoPipelining: false,
+  maxLoadingTimeout: 1000,
+  // Railway uchun qo'shimcha sozlamalar
+  showFriendlyErrorStack: process.env.NODE_ENV !== "production",
+  retryDelayOnFailover: 100,
+  maxRetriesPerRequest: 1,
+  // Connection retry
+  retryDelayOnClusterDown: 100,
+  enableReadyCheck: true,
   maxLoadingTimeout: 1000,
 };
 
@@ -31,40 +48,54 @@ const redisConfig = {
 let redis;
 let redisConnected = false;
 
-try {
-  redis = new Redis(redisConfig);
+// Redis mavjudligini tekshirish
+const isRedisAvailable = () => {
+  return (
+    process.env.REDIS_HOST ||
+    process.env.REDIS_URL ||
+    process.env.NODE_ENV === "development"
+  );
+};
 
-  // Redis ulanishini tekshirish
-  redis.on("connect", () => {
-    console.log("✅ Redis Connected");
-    redisConnected = true;
-  });
+if (isRedisAvailable()) {
+  try {
+    redis = new Redis(redisConfig);
 
-  redis.on("error", (err) => {
-    console.error("❌ Redis connection error:", err.message);
+    // Redis ulanishini tekshirish
+    redis.on("connect", () => {
+      console.log("✅ Redis Connected");
+      redisConnected = true;
+    });
+
+    redis.on("error", (err) => {
+      console.error("❌ Redis connection error:", err.message);
+      redisConnected = false;
+    });
+
+    redis.on("ready", () => {
+      console.log("✅ Redis Ready");
+      redisConnected = true;
+    });
+
+    redis.on("close", () => {
+      console.log("⚠️ Redis connection closed");
+      redisConnected = false;
+    });
+
+    // Graceful shutdown
+    process.on("SIGINT", async () => {
+      console.log("🔄 Closing Redis connection...");
+      if (redis) {
+        await redis.quit();
+      }
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error("❌ Redis initialization error:", error.message);
     redisConnected = false;
-  });
-
-  redis.on("ready", () => {
-    console.log("✅ Redis Ready");
-    redisConnected = true;
-  });
-
-  redis.on("close", () => {
-    console.log("⚠️ Redis connection closed");
-    redisConnected = false;
-  });
-
-  // Graceful shutdown
-  process.on("SIGINT", async () => {
-    console.log("🔄 Closing Redis connection...");
-    if (redis) {
-      await redis.quit();
-    }
-    process.exit(0);
-  });
-} catch (error) {
-  console.error("❌ Redis initialization error:", error.message);
+  }
+} else {
+  console.warn("⚠️ Redis not configured, using memory fallback");
   redisConnected = false;
 }
 

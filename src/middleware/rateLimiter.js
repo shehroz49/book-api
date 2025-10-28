@@ -5,21 +5,39 @@ const { redis } = require("../config/redis");
 
 // Redis store yaratish (fallback)
 let RedisStore;
+let redisAvailable = false;
+
 try {
   RedisStore = require("rate-limit-redis").RedisStore;
+  redisAvailable = true;
 } catch (error) {
   console.warn("Redis store yuklanmadi, memory store ishlatilmoqda");
   RedisStore = null;
+  redisAvailable = false;
 }
+
+// Redis mavjudligini tekshirish
+const isRedisConfigured = () => {
+  return (
+    process.env.REDIS_HOST ||
+    process.env.REDIS_URL ||
+    process.env.NODE_ENV === "development"
+  );
+};
 
 // Har bir limiter uchun alohida store yaratish
 const createRedisStore = (prefix) => {
-  if (!RedisStore) return undefined;
+  if (!RedisStore || !isRedisConfigured()) return undefined;
 
-  return new RedisStore({
-    sendCommand: (...args) => redis.call(...args),
-    prefix: `rl:${prefix}:`,
-  });
+  try {
+    return new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+      prefix: `rl:${prefix}:`,
+    });
+  } catch (error) {
+    console.warn(`Redis store yaratishda xatolik (${prefix}):`, error.message);
+    return undefined;
+  }
 };
 
 // Rate limiter konfiguratsiyasi
@@ -30,8 +48,12 @@ const createLimiter = (config, storePrefix) => {
     legacyHeaders: false,
   };
 
-  if (RedisStore) {
-    limiterConfig.store = createRedisStore(storePrefix);
+  // Redis mavjud bo'lsa va ishlayotgan bo'lsa, Redis store ishlatish
+  if (redisAvailable && isRedisConfigured()) {
+    const redisStore = createRedisStore(storePrefix);
+    if (redisStore) {
+      limiterConfig.store = redisStore;
+    }
   }
 
   return rateLimit(limiterConfig);

@@ -47,6 +47,42 @@ npm start
 
 Once the server is running, visit `http://localhost:8080/api-docs` for Swagger documentation.
 
+## Railway Deployment
+
+Railway ga deploy qilish uchun:
+
+1. Railway da yangi project yarating
+2. GitHub repository ni ulang
+3. Environment variables ni sozlang:
+
+```env
+# MongoDB (Railway PostgreSQL yoki MongoDB Atlas)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/book-api
+
+# Redis (ixtiyoriy - Redis mavjud bo'lmasa memory store ishlatiladi)
+REDIS_HOST=your-redis-host
+REDIS_PORT=6379
+REDIS_PASSWORD=your-redis-password
+
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+
+# JWT Secret
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRE=15m
+JWT_REFRESH_SECRET=your-refresh-secret-key-here
+JWT_REFRESH_EXPIRE=7d
+```
+
+4. Deploy qiling!
+
+**Eslatma**: Redis ixtiyoriy. Agar Redis mavjud bo'lmasa, loyiha memory store bilan ishlaydi.
+
 ## Default Configuration
 
-If you don't set the `MONGODB_URI` environment variable, the application will use the default local MongoDB connection: `mongodb://localhost:27017/book-api`
+If you don't set environment variables, the application will use these defaults:
+
+- MongoDB: `mongodb://localhost:27017/book-api`
+- Redis: `localhost:6379` (ixtiyoriy)
+- Port: `8080`

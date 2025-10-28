@@ -14,12 +14,18 @@ const {
   apiLimiter,
 } = require("./middleware/rateLimiter");
 const { performanceMonitor } = require("./middleware/performance");
+const { warmupCache } = require("./utils/cacheWarmer");
 
 // Environment variables yuklash
 dotenv.config();
 
-// Database ulanish
-connectDB();
+// Database ulanish va cache warmup
+connectDB().then(() => {
+  // Cache ni to'ldirish (5 soniyadan keyin, DB tayyor bo'lgach)
+  setTimeout(() => {
+    warmupCache();
+  }, 5000);
+});
 
 const app = express();
 
